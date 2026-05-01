@@ -2,5 +2,6 @@ streamlit
 pandas
 scikit-learn
 spotipy
+requests
 matplotlib
 seaborn
