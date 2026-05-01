@@ -20,20 +20,23 @@ except Exception as e:
     st.error("Spotify API Connection Failed. Check your Credentials.")
 
 def get_spotify_data(track_name, artist_name):
-    """Refined search to get better results from Spotify"""
+    """Refined search: Only take the main song title before '-' or '(' """
     try:
-        # Clean the names to avoid search errors
-        clean_track = track_name.split(' - ')[0].split(' (')[0]
-        query = f"track:{clean_track} artist:{artist_name}"
-        results = sp.search(q=query, type='track', limit=1)
+        # Clean song name: "Shape of You - Remastered" -> "Shape of You"
+        clean_name = track_name.split('-')[0].split('(')[0].strip()
+        query = f"track:{clean_name} artist:{artist_name}"
         
+        results = sp.search(q=query, type='track', limit=1)
         if results['tracks']['items']:
             track = results['tracks']['items'][0]
-            album_cover = track['album']['images'][0]['url']
+            # Get the high-resolution cover
+            album_cover = track['album']['images'][0]['url'] if track['album']['images'] else None
+            # Get the preview URL
             preview_url = track['preview_url']
             return album_cover, preview_url
-    except:
-        return None, None
+    except Exception as e:
+        # This will print the error to your Streamlit Logs so we can debug easier
+        print(f"Spotify API Error: {e}")
     return None, None
 
 # --- 3. DATA LOADING ---
