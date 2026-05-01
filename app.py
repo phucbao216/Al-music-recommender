@@ -7,7 +7,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 
 # --- Page Configuration ---
-st.set_page_config(page_title="Spotify AI Recommender", page_icon="🎵", layout="wide")
+st.set_page_config(page_title="Streamify AI", page_icon="🎵")
 
 
 # --- 1. Data Loading & Caching ---
@@ -119,7 +119,7 @@ def get_visualization(song_name, recommendations):
 
 
 # --- 4. Streamlit User Interface (UI) ---
-st.title("🎵 AI Music Recommender")
+st.title("🎵 Streamify AI")
 st.markdown("Discover new tracks based on acoustic similarity. Powered by **Machine Learning**.")
 
 # Search bar layout
