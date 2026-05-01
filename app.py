@@ -9,34 +9,29 @@ from sklearn.preprocessing import MinMaxScaler
 st.set_page_config(page_title="Streamify AI", page_icon="🎵", layout="wide")
 
 # --- 2. SPOTIFY API SETUP ---
-# Make sure these are EXACTLY as in your Dashboard
+# Using the credentials you provided
 CLIENT_ID = '19c97c85e06d4f4882183efcea8615c9'
 CLIENT_SECRET = 'ae0fd04a4a5b4b22a4d90ad6564c11d4'
 
-try:
-    auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
-    sp = spotipy.Spotify(auth_manager=auth_manager)
-except Exception as e:
-    st.error("Spotify API Connection Failed. Check your Credentials.")
+auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+sp = spotipy.Spotify(auth_manager=auth_manager)
 
 def get_spotify_data(track_name, artist_name):
-    """Refined search: Only take the main song title before '-' or '(' """
+    """Clean names and fetch data from Spotify API"""
     try:
-        # Clean song name: "Shape of You - Remastered" -> "Shape of You"
-        clean_name = track_name.split('-')[0].split('(')[0].strip()
-        query = f"track:{clean_name} artist:{artist_name}"
+        # Step 1: Clean the song name (remove everything after '-' or '(')
+        clean_track = track_name.split('-')[0].split('(')[0].strip()
+        # Step 2: Take only the first artist if there are many (separated by ';')
+        clean_artist = artist_name.split(';')[0].strip()
         
+        query = f"track:{clean_track} artist:{clean_artist}"
         results = sp.search(q=query, type='track', limit=1)
+        
         if results['tracks']['items']:
             track = results['tracks']['items'][0]
-            # Get the high-resolution cover
-            album_cover = track['album']['images'][0]['url'] if track['album']['images'] else None
-            # Get the preview URL
-            preview_url = track['preview_url']
-            return album_cover, preview_url
-    except Exception as e:
-        # This will print the error to your Streamlit Logs so we can debug easier
-        print(f"Spotify API Error: {e}")
+            return track['album']['images'][0]['url'], track['preview_url']
+    except:
+        return None, None
     return None, None
 
 # --- 3. DATA LOADING ---
@@ -56,40 +51,39 @@ df, features = load_data()
 
 # --- 4. ENGINE ---
 def recommend_songs(song_name, num_recommendations=5):
-    # Fuzzy search for the song in our local dataset
     search = df[df['track_name'].str.contains(song_name, case=False)]
     if search.empty: return None
     
     target = search.iloc[0]
     target_vec = target[features].values.reshape(1, -1)
     
-    # Filter by genre to ensure the "vibe" is correct
+    # Genre locking for better vibes
     candidates = df[df['track_genre'] == target['track_genre']].copy()
     candidates = candidates[candidates['track_name'] != target['track_name']]
-    
     if candidates.empty: candidates = df.copy()
 
     sim = cosine_similarity(target_vec, candidates[features])
     candidates['score'] = (sim[0] * 0.8) + (candidates['popularity'] / 100.0 * 0.2)
     return candidates.sort_values(by='score', ascending=False).head(num_recommendations)
 
-# --- 5. UI ---
+# --- 5. MODERN UI ---
 st.title("🎵 Streamify AI")
 st.markdown("Global music discovery powered by **Machine Learning**.")
 
-user_input = st.text_input("🔍 Search for a song:", placeholder="Try 'Starboy' or 'Shape of You'...")
+user_input = st.text_input("🔍 Search for a song you love:", placeholder="Try 'Starboy' or 'Perfect'...")
 
 if user_input:
     results = recommend_songs(user_input)
     if results is not None:
-        st.success("Recommended Tracks:")
+        st.success(f"Top matches for '{user_input.title()}':")
         for _, row in results.iterrows():
+            # This is where the magic happens
             cover, preview = get_spotify_data(row['track_name'], row['artists'])
             
             with st.container():
                 c1, c2 = st.columns([1, 4])
                 with c1:
-                    if cover: st.image(cover)
+                    if cover: st.image(cover, width=150)
                     else: st.markdown("### 💿")
                 with c2:
                     st.subheader(row['track_name'])
@@ -98,4 +92,4 @@ if user_input:
                     else: st.caption("Preview audio not available on Spotify")
                 st.divider()
     else:
-        st.warning("Song not found. Try another one!")
+        st.error("Song not found. Try another one!")
